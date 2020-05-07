@@ -48,9 +48,7 @@ mod test{
                     let strings : Vec<String> = vec![String::from("hello")];
                     let _configs = Config::new(&strings);
                 }
-                _ => {
-                    println!("only 3 tests supposed to run in this function");
-                }
+                _ => panic!("invalid test")
             }            
         }
     }
