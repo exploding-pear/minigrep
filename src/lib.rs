@@ -1,5 +1,7 @@
 use std::error::Error;
-use std::fs;
+use std::fs::File;
+use std::io::BufReader;
+use std::io::prelude::*;
 
 pub struct Config<'a> {
     query : &'a str,
@@ -17,23 +19,22 @@ impl<'a> Config<'a> {
 }
 
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
-    let contents = fs::read_to_string(config.filename)?;
-    for line in search(&config.query, &contents) {
-        println!("{}", line);
-    }
-    Ok(())
-}
+    let f = File::open(&config.filename)?;
+    let mut reader = BufReader::new(f);
+    let mut line = String::new();
+    let mut val : usize;
 
-pub fn search<'a>(query: &str, contents: &'a str) -> Vec<&'a str> {
-    let mut results = Vec::new();
-    
-    for line in contents.lines() {
-        if line.contains(query) {
-            results.push(line);
+    loop {
+        val = reader.read_line(&mut line)?;
+        if val == 0 {
+            break
         }
-    }
-    
-    results
+        else if line.contains(&config.query) {
+            println!("{}", &line);
+        }
+        line.clear();
+    }    
+    Ok(())
 }
 
 #[cfg(test)]
