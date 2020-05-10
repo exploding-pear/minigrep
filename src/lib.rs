@@ -19,6 +19,14 @@ impl<'a> Config<'a> {
 }
 
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
+    let results = search(&config)?;
+
+    for itr in results.iter() {
+        print!("{}", itr);
+    }
+
+    Ok(())
+    /*
     let f = File::open(&config.filename)?;
     let mut reader = BufReader::new(f);
     let mut line = String::new();
@@ -35,22 +43,49 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
         line.clear();
     }    
     Ok(())
+    */
+}
+
+fn search(config: &Config) -> Result<Vec<String>, Box<dyn Error>> {
+    let f = File::open(config.filename)?;
+    let mut results = Vec::new();
+    let mut reader = BufReader::new(f);
+    let mut line = String::new();
+    let mut val : usize;
+
+    loop {
+        val = reader.read_line(&mut line)?;
+        if val == 0 {
+            break
+        }
+        else if line.contains(config.query) {
+            results.push(line.clone());
+        }
+        line.clear();
+    }
+    Ok(results)
 }
 
 #[cfg(test)]
 mod test{
     use super::*;
 
-    #[test]
-    fn one_result() {
-        let query = "duct";
-        let contents = "\
-Rust:
-safe, fast, productive.
-Pick three.";
-
-        assert_eq!(vec!["safe, fast, productive."], search(query, contents));
+    fn results(filename: &str, keyword: &str) -> usize {
+        let cmd = vec!["minigrep".to_string(), keyword.to_string(), filename.to_string()];
+        let config = Config::new(&cmd).expect("unexpected failure");
+        let results = search(&config).expect("error");
+        results.len()
+        //assert_eq!(vec!["safe, fast, productive.".to_string()], search(&config).expect("error"));
     }
+    #[test]
+    fn one_hit() {
+        assert_eq!(results("testfiles/test.txt", "Pick"), 1);
+    }
+    #[test]
+    fn three_hits() {
+        assert_eq!(results("testfiles/poem.txt", "body"), 3);
+    }
+
     #[test]
     #[should_panic(expected = "failure: \"not enough arguments\"")]
     fn no_args() {
