@@ -26,26 +26,9 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
     }
 
     Ok(())
-    /*
-    let f = File::open(&config.filename)?;
-    let mut reader = BufReader::new(f);
-    let mut line = String::new();
-    let mut val : usize;
-
-    loop {
-        val = reader.read_line(&mut line)?;
-        if val == 0 {
-            break
-        }
-        else if line.contains(&config.query) {
-            println!("{}", &line);
-        }
-        line.clear();
-    }    
-    Ok(())
-    */
 }
 
+//searches the given file for the query, returns a vector of strings
 fn search(config: &Config) -> Result<Vec<String>, Box<dyn Error>> {
     let f = File::open(config.filename)?;
     let mut results = Vec::new();
@@ -75,7 +58,6 @@ mod test{
         let config = Config::new(&cmd).expect("unexpected failure");
         let results = search(&config).expect("error");
         results.len()
-        //assert_eq!(vec!["safe, fast, productive.".to_string()], search(&config).expect("error"));
     }
     #[test]
     fn one_hit() {
