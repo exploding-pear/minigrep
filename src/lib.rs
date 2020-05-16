@@ -19,7 +19,7 @@ impl<'a> Config<'a> {
 }
 
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
-    let results = search(&config)?;
+    let results = search(&config, false)?;
 
     for itr in results.iter() {
         print!("{}", itr);
@@ -29,17 +29,26 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 }
 
 //searches the given file for the query, returns a vector of strings
-fn search(config: &Config) -> Result<Vec<String>, Box<dyn Error>> {
+fn search(config: &Config, case_insenstive: bool) -> Result<Vec<String>, Box<dyn Error>> {
     let f = File::open(config.filename)?;
     let mut results = Vec::new();
     let mut reader = BufReader::new(f);
     let mut line = String::new();
     let mut val : usize;
+    let insensitive_query = config.query.to_lowercase();
+    let mut insensitive_line;
 
     loop {
         val = reader.read_line(&mut line)?;
         if val == 0 {
             break
+        }
+        else if case_insenstive == true {
+            insensitive_line = line.to_lowercase();
+            if insensitive_line.contains(& insensitive_query) {
+                results.push(line.clone());
+            }
+            insensitive_line.clear();
         }
         else if line.contains(config.query) {
             results.push(line.clone());
@@ -53,19 +62,27 @@ fn search(config: &Config) -> Result<Vec<String>, Box<dyn Error>> {
 mod test{
     use super::*;
 
-    fn results(filename: &str, keyword: &str) -> usize {
+    fn results(filename: &str, keyword: &str, insensitive: bool) -> usize {
         let cmd = vec!["minigrep".to_string(), keyword.to_string(), filename.to_string()];
         let config = Config::new(&cmd).expect("unexpected failure");
-        let results = search(&config).expect("error");
+        let results = search(&config, insensitive).expect("error");
         results.len()
     }
     #[test]
     fn one_hit() {
-        assert_eq!(results("testfiles/test.txt", "Pick"), 1);
+        assert_eq!(results("testfiles/test.txt", "Pick", false), 1);
+    }
+    #[test]
+    fn two_hits_insensitive() {
+        assert_eq!(results("testfiles/test.txt", "Pick", true), 2);
     }
     #[test]
     fn three_hits() {
-        assert_eq!(results("testfiles/poem.txt", "body"), 3);
+        assert_eq!(results("testfiles/poem.txt", "body", false), 3);
+    }
+    #[test]
+    fn case_insensitive() {
+        assert_eq!(results("testfiles/test.txt", "rUsT", true), 1);
     }
 
     #[test]
