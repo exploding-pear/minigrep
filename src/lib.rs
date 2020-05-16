@@ -2,10 +2,12 @@ use std::error::Error;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
+use std::env;
 
 pub struct Config<'a> {
     query : &'a str,
     filename : &'a str,
+    case_sensitive: bool,
 }
 
 impl<'a> Config<'a> {
@@ -14,12 +16,16 @@ impl<'a> Config<'a> {
             return Err("not enough arguments");
         }
 
-        Ok(Config{ query : &input[1], filename : &input[2] })
+        //if CASE_SENSITIVE doesn't exist, case_sensitive is false
+        //if CASE_SENSITIVE does exist, case_sensitive is true
+        let case_sensitive = ! env::var("CASE_SENSITIVE").is_err();
+
+        Ok(Config{ query : &input[1], filename : &input[2], case_sensitive: case_sensitive })
     }
 }
 
 pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
-    let results = search(&config, false)?;
+    let results = search(&config)?;
 
     for itr in results.iter() {
         print!("{}", itr);
@@ -29,7 +35,7 @@ pub fn run(config: &Config) -> Result<(), Box<dyn Error>> {
 }
 
 //searches the given file for the query, returns a vector of strings
-fn search(config: &Config, case_insenstive: bool) -> Result<Vec<String>, Box<dyn Error>> {
+fn search(config: &Config) -> Result<Vec<String>, Box<dyn Error>> {
     let f = File::open(config.filename)?;
     let mut results = Vec::new();
     let mut reader = BufReader::new(f);
@@ -44,8 +50,8 @@ fn search(config: &Config, case_insenstive: bool) -> Result<Vec<String>, Box<dyn
         if val == 0 {
             break
         }
-        //case insensitive check. line being checked and query are both lowercased and compared
-        else if case_insenstive == true {
+        //case sensitive check. line being checked and query are both lowercased and compared
+        else if config.case_sensitive == false {
             insensitive_line = line.to_lowercase();
             if insensitive_line.contains(& insensitive_query) {
                 results.push(line.clone());
@@ -65,27 +71,31 @@ fn search(config: &Config, case_insenstive: bool) -> Result<Vec<String>, Box<dyn
 mod test{
     use super::*;
 
-    fn results(filename: &str, keyword: &str, insensitive: bool) -> usize {
+    fn results(filename: &str, keyword: &str) -> usize {
         let cmd = vec!["minigrep".to_string(), keyword.to_string(), filename.to_string()];
         let config = Config::new(&cmd).expect("unexpected failure");
-        let results = search(&config, insensitive).expect("error");
+        let results = search(&config).expect("error");
         results.len()
     }
     #[test]
     fn one_hit() {
-        assert_eq!(results("testfiles/test.txt", "Pick", false), 1);
+        env::set_var("CASE_SENSITIVE", "true");
+        assert_eq!(results("testfiles/test.txt", "Pick"), 1);
     }
     #[test]
     fn two_hits_insensitive() {
-        assert_eq!(results("testfiles/test.txt", "Pick", true), 2);
+        env::remove_var("CASE_SENSITIVE");
+        assert_eq!(results("testfiles/test.txt", "Pick"), 2);
     }
     #[test]
     fn three_hits() {
-        assert_eq!(results("testfiles/poem.txt", "body", false), 3);
+        env::set_var("CASE_SENSITIVE", "true");
+        assert_eq!(results("testfiles/poem.txt", "body"), 3);
     }
     #[test]
     fn case_insensitive() {
-        assert_eq!(results("testfiles/test.txt", "rUsT", true), 1);
+        env::remove_var("CASE_SENSITIVE");
+        assert_eq!(results("testfiles/test.txt", "rUsT"), 1);
     }
 
     #[test]
